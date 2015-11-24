@@ -11,7 +11,8 @@ options = {
   long_break_minutes: 15,
   break_minutes: 5,
   work_minutes: 25,
-  logfile: 'pomo.log'
+  logfile: 'pomo.log',
+  history: false
 }
 
 opts = OptionParser.new do |opts|
@@ -36,12 +37,39 @@ opts = OptionParser.new do |opts|
   opts.on("-l", "--logfile FILE", "Path to logfile") do |l|
     options[:logfile] = l.to_i
   end
+  opts.on("--history", "Print historical statistics and information") do |o|
+    options[:history] = o
+  end
 end
 
 begin
   opts.parse!
 rescue
   puts opts
+  exit
+end
+
+trap "SIGINT" do
+  system("printf '\033kpomo\033\\'")
+  puts ""
+  exit 130
+end
+
+def print_history(logfile)
+  today = 0
+  week = 0
+  File.readlines(logfile).each do |line|
+    tokens = line.split(/\s+/)
+    time = DateTime.iso8601(tokens[0])
+    today += 1 if time.to_date == Date.today
+    week += 1 if time.to_date.cweek == Date.today.cweek
+  end
+  puts "Pomodoros completed today: #{today}"
+  puts "Pomodoros completed this week: #{week}"
+end
+
+if options[:history]
+  print_history(options[:logfile])
   exit
 end
 
@@ -55,8 +83,8 @@ loop do
     system("printf '\033k#{window_string}\033\\'")
     sleep(1)
   end
-  run += 1
   if state == :work
+    run += 1
     system("terminal-notifier -message 'Work time is up' -title Pomo")
     if run == options[:long_break_interval]
       state = :long_break
@@ -68,6 +96,7 @@ loop do
     end
     print "Finished pomodoro. Enter what you worked on: "
     open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
+    print_history(options[:logfile])
   else state == :break || state == :long_break
     system("terminal-notifier -message 'Break time is up' -title Pomo")
     state = :work
