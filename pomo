@@ -66,15 +66,12 @@ loop do
       seconds = options[:break_minutes] * 60
       state = :break
     end
-  elsif state == :break || state == :long_break
+    print "Finished pomodoro. Enter what you worked on: "
+    open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
+  else state == :break || state == :long_break
     system("terminal-notifier -message 'Break time is up' -title Pomo")
     state = :work
     seconds = options[:work_minutes] * 60
-  end
-  if state == :work
-    print "Finished pomodoro. Enter what you worked on: "
-    open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
-  else
     print "Finished break. Hit return to continue..."
     gets
   end
