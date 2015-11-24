@@ -3,8 +3,26 @@
 require 'time'
 require 'optparse'
 
+def print_history(logfile)
+  today = 0
+  week = 0
+  File.readlines(logfile).each do |line|
+    tokens = line.split(/\s+/)
+    time = DateTime.iso8601(tokens[0])
+    today += 1 if time.to_date == Date.today
+    week += 1 if time.to_date.cweek == Date.today.cweek
+  end
+  puts "Pomodoros completed today: #{today}"
+  puts "Pomodoros completed this week: #{week}"
+end
+
+def end_pomodoro(logfile)
+  print "Finished pomodoro. Enter what you worked on: "
+  open(logfile, 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
+  print_history(logfile)
+end
+
 state = :work
-run = 0
 
 options = {
   long_break_interval: 4,
@@ -12,7 +30,8 @@ options = {
   break_minutes: 5,
   work_minutes: 25,
   logfile: 'pomo.log',
-  history: false
+  history: false,
+  auto_break: false
 }
 
 opts = OptionParser.new do |opts|
@@ -37,6 +56,9 @@ opts = OptionParser.new do |opts|
   opts.on("-l", "--logfile FILE", "Path to logfile") do |l|
     options[:logfile] = l.to_i
   end
+  opts.on("-a", "--auto-break", "Start break timer as soon as work timer completes") do |l|
+    options[:auto_break] = l
+  end
   opts.on("--history", "Print historical statistics and information") do |o|
     options[:history] = o
   end
@@ -55,24 +77,19 @@ trap "SIGINT" do
   exit 130
 end
 
-def print_history(logfile)
-  today = 0
-  week = 0
-  File.readlines(logfile).each do |line|
-    tokens = line.split(/\s+/)
-    time = DateTime.iso8601(tokens[0])
-    today += 1 if time.to_date == Date.today
-    week += 1 if time.to_date.cweek == Date.today.cweek
-  end
-  puts "Pomodoros completed today: #{today}"
-  puts "Pomodoros completed this week: #{week}"
-end
-
 if options[:history]
   print_history(options[:logfile])
   exit
 end
 
+completed_today = 0
+File.readlines(options[:logfile]).each do |line|
+  tokens = line.split(/\s+/)
+  time = DateTime.iso8601(tokens[0])
+  completed_today += 1 if time.to_date == Date.today
+end
+run = completed_today % options[:long_break_interval]
+puts run
 seconds = options[:work_minutes] * 60
 
 loop do
@@ -94,14 +111,18 @@ loop do
       seconds = options[:break_minutes] * 60
       state = :break
     end
-    print "Finished pomodoro. Enter what you worked on: "
-    open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
-    print_history(options[:logfile])
+    if (!options[:auto_break])
+      end_pomodoro(options[:logfile])
+    end
   else
     system("terminal-notifier -message 'Break time is up' -title Pomo")
     state = :work
     seconds = options[:work_minutes] * 60
-    print "Finished break. Hit return to continue..."
-    gets
+    if (options[:auto_break])
+      end_pomodoro(options[:logfile])
+    else
+      print "Finished break. Hit return to continue..."
+      gets
+    end
   end
 end
