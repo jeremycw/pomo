@@ -1,0 +1,81 @@
+#!/usr/bin/env ruby
+
+require 'time'
+require 'optparse'
+
+state = :work
+run = 0
+
+options = {
+  long_break_interval: 4,
+  long_break_minutes: 15,
+  break_minutes: 5,
+  work_minutes: 25,
+  logfile: 'pomo.log'
+}
+
+opts = OptionParser.new do |opts|
+  opts.banner = "Usage: pomo [options]"
+
+  opts.on("-h", "--help", "Display this message") do |l|
+    puts opts
+    exit
+  end
+  opts.on("-w", "--work-minutes N", "N minutes for each pomodoro (default 25)") do |w|
+    options[:work_minutes] = Integer(w)
+  end
+  opts.on("-s", "--break-minutes N", "N minutes for standard breaks (default 5)") do |b|
+    options[:break_minutes] = Integer(b)
+  end
+  opts.on("-b", "--long-break-minutes N", "N minutes for long breaks (default 15)") do |l|
+    options[:long_break_minutes] = Integer(l)
+  end
+  opts.on("-i", "--long-break-interval N", "Complete N pomodoros to get a long break (default 4)") do |i|
+    options[:long_break_interval] = Integer(i)
+  end
+  opts.on("-l", "--logfile FILE", "Path to logfile") do |l|
+    options[:logfile] = l.to_i
+  end
+end
+
+begin
+  opts.parse!
+rescue
+  puts opts
+  exit
+end
+
+seconds = options[:work_minutes] * 60
+
+loop do
+  seconds.times do
+    seconds -= 1 
+    prefix = state == :work ? "work" : "break"
+    window_string = sprintf("%s %d:%02d", prefix, seconds / 60, seconds % 60)
+    system("printf '\033k#{window_string}\033\\'")
+    sleep(1)
+  end
+  run += 1
+  if state == :work
+    system("terminal-notifier -message 'Work time is up' -title Pomo")
+    if run == options[:long_break_interval]
+      state = :long_break
+      seconds = options[:long_break_minutes] * 60
+      run = 0
+    else
+      seconds = options[:break_minutes] * 60
+      state = :break
+    end
+  elsif state == :break || state == :long_break
+    system("terminal-notifier -message 'Break time is up' -title Pomo")
+    state = :work
+    seconds = options[:work_minutes] * 60
+  end
+  if state == :work
+    print "Finished pomodoro. Enter what you worked on: "
+    open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
+  else
+    print "Finished break. Hit return to continue..."
+    gets
+  end
+end
