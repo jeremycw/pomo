@@ -89,7 +89,6 @@ File.readlines(options[:logfile]).each do |line|
   completed_today += 1 if time.to_date == Date.today
 end
 run = completed_today % options[:long_break_interval]
-puts run
 seconds = options[:work_minutes] * 60
 
 loop do
