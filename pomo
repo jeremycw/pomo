@@ -97,7 +97,7 @@ loop do
     print "Finished pomodoro. Enter what you worked on: "
     open(options[:logfile], 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
     print_history(options[:logfile])
-  else state == :break || state == :long_break
+  else
     system("terminal-notifier -message 'Break time is up' -title Pomo")
     state = :work
     seconds = options[:work_minutes] * 60
