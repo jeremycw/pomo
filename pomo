@@ -6,9 +6,7 @@ require 'optparse'
 def print_history(logfile)
   today = 0
   week = 0
-  File.readlines(logfile).each do |line|
-    tokens = line.split(/\s+/)
-    time = DateTime.iso8601(tokens[0])
+  parse_log(logfile) do |time, tokens|
     today += 1 if time.to_date == Date.today
     week += 1 if time.to_date.cweek == Date.today.cweek
   end
@@ -20,6 +18,14 @@ def end_pomodoro(logfile)
   print "Finished pomodoro. Enter what you worked on: "
   open(logfile, 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
   print_history(logfile)
+end
+
+def parse_log(logfile)
+  File.readlines(logfile).each do |line|
+    tokens = line.split(/\s+/)
+    time = DateTime.iso8601(tokens[0])
+    yield time, tokens
+  end
 end
 
 state = :work
@@ -83,9 +89,7 @@ if options[:history]
 end
 
 completed_today = 0
-File.readlines(options[:logfile]).each do |line|
-  tokens = line.split(/\s+/)
-  time = DateTime.iso8601(tokens[0])
+parse_log(options[:logfile]) do |time, tokens|
   completed_today += 1 if time.to_date == Date.today
 end
 run = completed_today % options[:long_break_interval]
