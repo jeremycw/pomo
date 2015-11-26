@@ -16,7 +16,7 @@ end
 
 def end_pomodoro(logfile)
   print "Finished pomodoro. Enter what you worked on: "
-  open(logfile, 'a') { |f| f.puts "#{Time.now.utc.iso8601} #{gets}" }
+  open(logfile, 'a') { |f| f.puts "#{Time.now.iso8601} #{gets}" }
   print_history(logfile)
 end
 
